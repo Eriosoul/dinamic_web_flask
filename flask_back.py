@@ -23,12 +23,28 @@ class users(db.Model):
 def home():
     return render_template("index.html")
 
+@app.route("/view")
+def view():
+    all_users = users.query.all()
+    return render_template("view.html", values=all_users)
+
+
 @app.route("/login", methods=["POST", "GET"])
 def login():
     if request.method == "POST":
         session.permanent = True
         user = request.form["nm"]
         session["user"] = user
+
+        found_user = users.query.filter_by(name=user).delete()
+        for user in found_user:
+            user.delete()
+        if found_user:
+            session["email"] = found_user.email
+        else:
+            usr = users(user, "")
+            db.session.add(usr)
+            db.session.commit()
         flash(f"Login successful, {user}", "info")
         return redirect(url_for("user"))
     else:
@@ -45,6 +61,9 @@ def user():
         if request.method == "POST":
             email = request.form["email"]
             session["email"] = email
+            found_user = users.query.filter_by(name=user).first()
+            found_user.email = email
+            db.session.commit()
             flash(f"Email successful, {email}", "info")
         else:
             if "email" in session:
@@ -62,5 +81,6 @@ def logout():
     return redirect(url_for("login"))
 
 if __name__ == '__main__':
-    db.create_all()
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)
